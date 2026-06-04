@@ -1,99 +1,127 @@
 # Remote Touchpad
 
-Remote Touchpad is a Windows LAN web touchpad tool. Run the tray app on a Windows PC, then open the local web page from a phone, iPad, or browser on the same network to control the mouse.
+Remote Touchpad 是一个 Windows 局域网 Web 触控板工具。电脑端运行托盘程序后，手机、iPad 或同网段浏览器访问电脑地址，即可通过网页控制鼠标移动、点击和滚轮。
 
-## Current Behavior
+这个项目的目标很简单：躺在床上看视频、投屏、演示或远距离操作电脑时，不需要投屏画面，只把手机当作轻量鼠标使用。
 
-- Windows tray app.
-- Built-in Kestrel web server.
-- Default local port: `8765`.
-- Default password: `123456`.
-- Login page: `http://localhost:8765/`.
-- Touchpad page after login: `http://localhost:8765/control.html`.
-- Server logs page: `http://localhost:8765/logs`.
-- Log file: `%APPDATA%\RemoteTouchpad\logs\remote-touchpad.log`.
-- Config file: `%APPDATA%\RemoteTouchpad\config.json`.
+## 功能
 
-The current login flow intentionally uses a native HTML form and an HttpOnly session cookie:
+- Windows 托盘常驻程序。
+- 内置 Kestrel Web 服务，默认端口 `8765`。
+- 手机/iPad 浏览器触控板页面。
+- 单指移动鼠标、点击、双击、双指滚动。
+- 页面底部提供左键、右键按钮。
+- 固定密码登录，默认密码 `123456`。
+- 登录后使用 `HttpOnly` 会话 Cookie，控制页和 WebSocket 都由后端校验。
+- 托盘菜单支持显示地址、复制地址、复制日志路径、修改密码、退出。
+- 后端请求和 WebSocket 日志，便于排障。
+- 透明底白色 1:1 托盘图标，适配 Windows 系统托盘。
 
-```text
-POST /login -> Set-Cookie remoteTouchpadSession=<HttpOnly> -> 302 /control.html
-```
+## 快速开始
 
-The control page then opens a WebSocket connection using that cookie:
-
-```text
-GET /ws
-```
-
-This avoids the earlier unreliable login-page UI switching flow.
-
-## Features
-
-- Single-finger mouse movement.
-- Left click and right click buttons.
-- Tap and double-tap support.
-- Two-finger scrolling.
-- Fixed password login.
-- HttpOnly session-cookie WebSocket authentication.
-- Detailed backend request and WebSocket logs.
-
-## Run
+运行开发版：
 
 ```powershell
 dotnet run --project src/RemoteTouchpad/RemoteTouchpad.csproj
 ```
 
-After launch, use the tray icon to show or copy the access address.
+启动后，右键系统托盘图标，选择“显示访问地址”或“复制访问地址”。在同一局域网内，用手机或 iPad 浏览器打开该地址。
 
-## Publish
+常用入口：
+
+```text
+http://localhost:8765/
+http://localhost:8765/control.html
+http://localhost:8765/logs
+```
+
+首次登录使用默认密码：
+
+```text
+123456
+```
+
+建议首次运行后通过托盘菜单修改密码。
+
+## 发布
+
+生成 Windows x64 发布目录：
 
 ```powershell
 dotnet publish src\RemoteTouchpad\RemoteTouchpad.csproj -c Release -r win-x64 --self-contained false
 ```
 
-Publish output:
+发布输出目录：
 
 ```text
 src\RemoteTouchpad\bin\Release\net8.0-windows\win-x64\publish
 ```
 
-Before publishing over an existing publish directory, stop any running `RemoteTouchpad.exe`; otherwise Windows may lock the DLL files.
+如果覆盖已有发布目录，请先退出正在运行的 `RemoteTouchpad.exe`，否则 Windows 可能锁定 DLL 文件。
 
-## Troubleshooting
+## 配置与日志
 
-1. Confirm the running process path:
-
-```powershell
-Get-Process -Name RemoteTouchpad -ErrorAction SilentlyContinue | Select-Object Id,Path,StartTime
-```
-
-2. Confirm port `8765` is owned by the expected process:
-
-```powershell
-Get-NetTCPConnection -LocalPort 8765 -ErrorAction SilentlyContinue | Select-Object LocalAddress,LocalPort,State,OwningProcess
-```
-
-3. Open the log page:
-
-```text
-http://localhost:8765/logs
-```
-
-4. Check the log file directly:
-
-```text
-%APPDATA%\RemoteTouchpad\logs\remote-touchpad.log
-```
-
-5. Confirm the configured password:
+配置文件：
 
 ```text
 %APPDATA%\RemoteTouchpad\config.json
 ```
 
-6. If the browser appears stale, force refresh `http://localhost:8765/`.
+日志文件：
 
-## Retrospective
+```text
+%APPDATA%\RemoteTouchpad\logs\remote-touchpad.log
+```
 
-See [docs/remote-touchpad-retrospective.md](docs/remote-touchpad-retrospective.md) for the implementation review, failure analysis, and lessons learned from the login debugging process.
+默认配置包括：
+
+- 端口：`8765`
+- 密码：`123456`
+- 鼠标灵敏度：`1.0`
+
+## 安全说明
+
+Remote Touchpad 面向个人电脑和同一局域网使用，不包含外网穿透能力，也不传输桌面画面。
+
+当前登录流程：
+
+```text
+POST /login -> Set-Cookie remoteTouchpadSession=<HttpOnly> -> 302 /control.html
+```
+
+控制页通过会话 Cookie 建立 WebSocket：
+
+```text
+GET /ws
+```
+
+`/control.html`、`/control.js` 和 `/ws` 都需要有效会话。`/logs` 仅允许已登录访问，或从本机访问。
+
+## 常见问题
+
+如果手机无法访问：
+
+- 确认手机和电脑在同一局域网。
+- 使用托盘菜单复制的局域网地址，不要在手机上使用 `localhost`。
+- 检查 Windows 防火墙是否拦截端口 `8765`。
+- 确认电脑端程序仍在运行。
+
+如果登录或控制异常：
+
+- 强制刷新浏览器页面。
+- 打开 `http://localhost:8765/logs` 查看服务端日志。
+- 检查 `%APPDATA%\RemoteTouchpad\config.json` 中的密码配置。
+
+## 文档
+
+- [用户手册](docs/user-guide.md)
+- [实现复盘](docs/remote-touchpad-retrospective.md)
+
+## 技术栈
+
+- .NET 8
+- C#
+- Windows Forms 托盘程序
+- ASP.NET Core Kestrel
+- WebSocket
+- Windows `SendInput`
