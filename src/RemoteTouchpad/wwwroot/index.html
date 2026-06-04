@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Remote Touchpad</title>
+  <link rel="stylesheet" href="/styles.css?v=20260604-7">
+</head>
+<body>
+  <main class="app">
+    <section id="login" class="login">
+      <h1>Remote Touchpad</h1>
+      <form id="loginForm" action="/login" method="post">
+        <label for="password">Password</label>
+        <input id="password" name="password" type="password" autocomplete="current-password" required>
+        <button id="connectButton" type="submit">Connect</button>
+      </form>
+      <p id="loginError" class="error" aria-live="polite" hidden>Unable to connect. Check the password and try again.</p>
+      <a class="log-link" href="/logs" target="_blank" rel="noreferrer">View server logs</a>
+    </section>
+
+    <section id="controller" class="controller" hidden>
+      <div class="status">
+        <strong>Remote Touchpad</strong>
+        <span id="connectionState">Connecting</span>
+      </div>
+      <div id="pad" class="pad" aria-label="Touchpad"></div>
+      <div class="buttons">
+        <button id="leftButton" type="button">Left</button>
+        <button id="rightButton" type="button">Right</button>
+      </div>
+    </section>
+  </main>
+  <script src="/app.js?v=20260604-7"></script>
+</body>
+</html>
