@@ -1,36 +1,24 @@
 <!doctype html>
-<html lang="en">
+<html lang="zh-CN">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>Remote Touchpad</title>
-  <link rel="stylesheet" href="/styles.css?v=20260604-7">
+  <title>&#36828;&#31243;&#35302;&#25511;&#26495;</title>
+  <link rel="stylesheet" href="/styles.css?v=20260604-9">
 </head>
 <body>
   <main class="app">
     <section id="login" class="login">
-      <h1>Remote Touchpad</h1>
+      <h1>&#36828;&#31243;&#35302;&#25511;&#26495;</h1>
       <form id="loginForm" action="/login" method="post">
-        <label for="password">Password</label>
+        <label for="password">&#36830;&#25509;&#23494;&#30721;</label>
         <input id="password" name="password" type="password" autocomplete="current-password" required>
-        <button id="connectButton" type="submit">Connect</button>
+        <button id="connectButton" type="submit">&#36830;&#25509;</button>
       </form>
-      <p id="loginError" class="error" aria-live="polite" hidden>Unable to connect. Check the password and try again.</p>
-      <a class="log-link" href="/logs" target="_blank" rel="noreferrer">View server logs</a>
-    </section>
-
-    <section id="controller" class="controller" hidden>
-      <div class="status">
-        <strong>Remote Touchpad</strong>
-        <span id="connectionState">Connecting</span>
-      </div>
-      <div id="pad" class="pad" aria-label="Touchpad"></div>
-      <div class="buttons">
-        <button id="leftButton" type="button">Left</button>
-        <button id="rightButton" type="button">Right</button>
-      </div>
+      <p id="loginError" class="error" aria-live="polite" hidden>&#26080;&#27861;&#36830;&#25509;&#65292;&#35831;&#26816;&#26597;&#23494;&#30721;&#21518;&#37325;&#35797;&#12290;</p>
+      <a class="log-link" href="/logs" target="_blank" rel="noreferrer">&#26597;&#30475;&#26381;&#21153;&#26085;&#24535;</a>
     </section>
   </main>
-  <script src="/app.js?v=20260604-7"></script>
+  <script src="/app.js?v=20260604-9"></script>
 </body>
 </html>

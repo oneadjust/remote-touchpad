@@ -14,16 +14,16 @@ Remote Touchpad is a Windows LAN web touchpad tool. Run the tray app on a Window
 - Log file: `%APPDATA%\RemoteTouchpad\logs\remote-touchpad.log`.
 - Config file: `%APPDATA%\RemoteTouchpad\config.json`.
 
-The current login flow intentionally uses a native HTML form:
+The current login flow intentionally uses a native HTML form and an HttpOnly session cookie:
 
 ```text
-POST /login -> 302 /control.html?token=<redacted>
+POST /login -> Set-Cookie remoteTouchpadSession=<HttpOnly> -> 302 /control.html
 ```
 
-The control page then opens a WebSocket connection:
+The control page then opens a WebSocket connection using that cookie:
 
 ```text
-GET /ws?token=<redacted>
+GET /ws
 ```
 
 This avoids the earlier unreliable login-page UI switching flow.
@@ -35,7 +35,7 @@ This avoids the earlier unreliable login-page UI switching flow.
 - Tap and double-tap support.
 - Two-finger scrolling.
 - Fixed password login.
-- Token-based WebSocket authentication.
+- HttpOnly session-cookie WebSocket authentication.
 - Detailed backend request and WebSocket logs.
 
 ## Run

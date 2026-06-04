@@ -1,4 +1,3 @@
-const tokenKey = "remoteTouchpadToken";
 const connectionState = document.getElementById("connectionState");
 const pad = document.getElementById("pad");
 const leftButton = document.getElementById("leftButton");
@@ -13,62 +12,28 @@ function setState(text) {
   connectionState.textContent = text;
 }
 
-function saveToken(token) {
-  localStorage.setItem(tokenKey, token);
-  document.cookie = `${tokenKey}=${encodeURIComponent(token)}; path=/; SameSite=Lax`;
-}
-
-function readCookieToken() {
-  const prefix = `${tokenKey}=`;
-  return document.cookie
-    .split(";")
-    .map((part) => part.trim())
-    .find((part) => part.startsWith(prefix))
-    ?.slice(prefix.length);
-}
-
-function getToken() {
-  const url = new URL(window.location.href);
-  const urlToken = url.searchParams.get("token");
-  if (urlToken) {
-    saveToken(urlToken);
-    url.searchParams.delete("token");
-    window.history.replaceState({}, "", url.pathname);
-    return urlToken;
-  }
-
-  return localStorage.getItem(tokenKey) || readCookieToken();
-}
-
-function connect(token) {
-  if (!token) {
-    setState("Not logged in");
-    return;
-  }
-
+function connect() {
   clearTimeout(reconnectTimer);
   const protocol = location.protocol === "https:" ? "wss" : "ws";
-  socket = new WebSocket(`${protocol}://${location.host}/ws?token=${encodeURIComponent(token)}`);
+  socket = new WebSocket(`${protocol}://${location.host}/ws`);
   let opened = false;
 
   socket.addEventListener("open", () => {
     opened = true;
-    setState("Connected");
+    setState("\u5df2\u8fde\u63a5");
   });
 
   socket.addEventListener("close", () => {
-    setState("Disconnected");
+    setState("\u5df2\u65ad\u5f00");
     if (!opened) {
-      localStorage.removeItem(tokenKey);
-      document.cookie = `${tokenKey}=; path=/; max-age=0; SameSite=Lax`;
-      window.location.href = "/?loginError=1";
+      window.location.href = "/?loginError=auth";
       return;
     }
 
-    reconnectTimer = setTimeout(() => connect(localStorage.getItem(tokenKey) || readCookieToken()), 1200);
+    reconnectTimer = setTimeout(connect, 1200);
   });
 
-  socket.addEventListener("error", () => setState("Connection error"));
+  socket.addEventListener("error", () => setState("\u8fde\u63a5\u9519\u8bef"));
 }
 
 function send(message) {
@@ -132,8 +97,8 @@ rightButton.addEventListener("click", () => sendButton("right"));
 
 document.addEventListener("visibilitychange", () => {
   if (!document.hidden && (!socket || socket.readyState === WebSocket.CLOSED)) {
-    connect(localStorage.getItem(tokenKey) || readCookieToken());
+    connect();
   }
 });
 
-connect(getToken());
+connect();

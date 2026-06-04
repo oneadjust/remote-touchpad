@@ -9,8 +9,8 @@
 - Windows 托盘程序负责启动和管理服务。
 - Kestrel 内置 Web 服务监听 `8765` 端口。
 - 登录页是 `http://localhost:8765/`。
-- 登录成功后服务端跳转到独立触控板页 `/control.html?token=<redacted>`。
-- 触控板页通过 `/ws?token=<redacted>` 建立 WebSocket。
+- 登录成功后服务端设置 `HttpOnly` 会话 cookie，并跳转到独立触控板页 `/control.html`。
+- 触控板页通过 `/ws` 建立 WebSocket，后端用会话 cookie 认证。
 - 鼠标输入由 Windows `SendInput` 执行。
 - 后端日志写入 `%APPDATA%\RemoteTouchpad\logs\remote-touchpad.log`，也可以通过 `/logs` 查看。
 
@@ -52,8 +52,9 @@
 
 - 登录页不再负责切换成触控板。
 - `Connect` 使用原生 HTML 表单提交：`POST /login`。
-- 后端验证密码成功后返回 `302 /control.html?token=<redacted>`。
-- `control.html` 是独立触控板页面，只负责读取 token 并建立 WebSocket。
+- 后端验证密码成功后设置 `HttpOnly` 会话 cookie，并返回 `302 /control.html`。
+- `control.html` 是独立触控板页面，只负责建立 WebSocket。
+- `/control.html`、`/control.js`、`/ws` 都由后端校验会话 cookie。
 
 这个方案更稳，因为登录成功后浏览器发生真实页面跳转，而不是依赖同页 JS 状态切换。
 
@@ -87,10 +88,11 @@ GET /
 GET /styles.css?v=...
 GET /app.js?v=...
 POST /login
-302 /control.html?token=<redacted>
-GET /control.html?token=<redacted>
+Set-Cookie remoteTouchpadSession=<HttpOnly>
+302 /control.html
+GET /control.html
 GET /control.js?v=...
-GET /ws?token=<redacted>
+GET /ws
 WebSocket accepted
 ```
 
@@ -137,7 +139,7 @@ http://localhost:8765/logs
 
 7. 如果登录成功但没进触控板，看是否有 `GET /control.html` 和 `GET /ws`。
 
-8. 如果 WebSocket 被拒绝，看 token 长度和日志中的认证结果。
+8. 如果 WebSocket 被拒绝，看会话 cookie 是否存在，以及日志中的认证结果。
 
 ## 工程经验
 

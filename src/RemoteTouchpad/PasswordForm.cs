@@ -6,7 +6,7 @@ public sealed class PasswordForm : Form
 
     public PasswordForm(string currentPassword)
     {
-        Text = "修改 Remote Touchpad 密码";
+        Text = "\u4fee\u6539\u8fdc\u7a0b\u89e6\u63a7\u677f\u5bc6\u7801";
         FormBorderStyle = FormBorderStyle.FixedDialog;
         MaximizeBox = false;
         MinimizeBox = false;
@@ -15,7 +15,7 @@ public sealed class PasswordForm : Form
 
         var label = new Label
         {
-            Text = "新密码：",
+            Text = "\u65b0\u5bc6\u7801\uff1a",
             AutoSize = true,
             Location = new Point(20, 24)
         };
@@ -26,7 +26,7 @@ public sealed class PasswordForm : Form
 
         var okButton = new Button
         {
-            Text = "保存",
+            Text = "\u4fdd\u5b58",
             DialogResult = DialogResult.OK,
             Location = new Point(178, 86),
             Size = new Size(75, 28)
@@ -34,7 +34,7 @@ public sealed class PasswordForm : Form
 
         var cancelButton = new Button
         {
-            Text = "取消",
+            Text = "\u53d6\u6d88",
             DialogResult = DialogResult.Cancel,
             Location = new Point(259, 86),
             Size = new Size(75, 28)
@@ -44,7 +44,7 @@ public sealed class PasswordForm : Form
         {
             if (string.IsNullOrWhiteSpace(_passwordBox.Text))
             {
-                MessageBox.Show("密码不能为空。", "Remote Touchpad", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                MessageBox.Show("\u5bc6\u7801\u4e0d\u80fd\u4e3a\u7a7a\u3002", "\u8fdc\u7a0b\u89e6\u63a7\u677f", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 DialogResult = DialogResult.None;
             }
         };

@@ -36,9 +36,9 @@ public sealed class ConfigStore
                 config.Password = "123456";
             }
 
-            if (string.IsNullOrWhiteSpace(config.AuthToken))
+            if (string.IsNullOrWhiteSpace(config.SessionToken))
             {
-                config.AuthToken = Guid.NewGuid().ToString("N");
+                config.SessionToken = Guid.NewGuid().ToString("N");
             }
 
             if (config.Port is < 1024 or > 65535)

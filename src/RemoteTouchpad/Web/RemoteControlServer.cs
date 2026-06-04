@@ -14,7 +14,13 @@ namespace RemoteTouchpad.Web;
 
 public sealed class RemoteControlServer : IAsyncDisposable
 {
+    private const string SessionCookieName = "remoteTouchpadSession";
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
+    private static readonly PathString[] ProtectedStaticPaths =
+    [
+        new("/control.html"),
+        new("/control.js")
+    ];
 
     private readonly AppConfig _config;
     private readonly MouseController _mouseController = new();
@@ -41,6 +47,7 @@ public sealed class RemoteControlServer : IAsyncDisposable
 
         _app = builder.Build();
         _app.Use(RequestLoggingMiddleware);
+        _app.Use(ProtectedStaticMiddleware);
         _app.UseWebSockets();
 
         var webRoot = Path.Combine(AppContext.BaseDirectory, "wwwroot");
@@ -77,16 +84,22 @@ public sealed class RemoteControlServer : IAsyncDisposable
             });
         });
 
-        _app.MapGet("/logs", () =>
+        _app.MapGet("/logs", (HttpContext context) =>
         {
             AppLogger.Info("Logs page requested.");
+            if (!IsAuthorized(context) && !IsLocalRequest(context))
+            {
+                AppLogger.Info("Logs page rejected. Not authorized and not local.");
+                return Results.Unauthorized();
+            }
+
             if (!File.Exists(AppLogger.LogPath))
             {
-                return Results.Text("Log file does not exist yet.", "text/plain");
+                return Results.Text("\u65e5\u5fd7\u6587\u4ef6\u5c1a\u672a\u521b\u5efa\u3002", "text/plain; charset=utf-8");
             }
 
             var lines = File.ReadLines(AppLogger.LogPath).TakeLast(300);
-            return Results.Text(string.Join(Environment.NewLine, lines), "text/plain");
+            return Results.Text(string.Join(Environment.NewLine, lines), "text/plain; charset=utf-8");
         });
 
         _app.MapPost("/api/login", async (HttpContext context) =>
@@ -103,8 +116,9 @@ public sealed class RemoteControlServer : IAsyncDisposable
                 return Results.Unauthorized();
             }
 
-            AppLogger.Info($"API login success. PasswordLength={login.Password.Length}, TokenLength={_config.AuthToken.Length}");
-            return Results.Json(new LoginResponse(_config.AuthToken), JsonOptions);
+            SetSessionCookie(context);
+            AppLogger.Info($"API login success. PasswordLength={login.Password.Length}, SessionTokenLength={_config.SessionToken.Length}");
+            return Results.Json(new LoginResponse(true), JsonOptions);
         });
 
         _app.MapPost("/login", async (HttpContext context) =>
@@ -120,17 +134,16 @@ public sealed class RemoteControlServer : IAsyncDisposable
                 return Results.Redirect("/?loginError=1");
             }
 
-            context.Response.Cookies.Append(
-                "remoteTouchpadToken",
-                _config.AuthToken,
-                new CookieOptions
-                {
-                    SameSite = SameSiteMode.Lax,
-                    IsEssential = true
-                });
+            SetSessionCookie(context);
+            AppLogger.Info($"Form login success. Redirecting to control page. SessionTokenLength={_config.SessionToken.Length}");
+            return Results.Redirect("/control.html");
+        });
 
-            AppLogger.Info($"Form login success. Redirecting to control page. TokenLength={_config.AuthToken.Length}");
-            return Results.Redirect($"/control.html?token={Uri.EscapeDataString(_config.AuthToken)}");
+        _app.MapGet("/logout", (HttpContext context) =>
+        {
+            ClearSessionCookie(context);
+            AppLogger.Info("Logout requested. Session cookie cleared.");
+            return Results.Redirect("/");
         });
 
         _app.Map("/ws", HandleWebSocketAsync);
@@ -148,6 +161,19 @@ public sealed class RemoteControlServer : IAsyncDisposable
             await _app.DisposeAsync();
             AppLogger.Info("Web server stopped.");
         }
+    }
+
+    private async Task ProtectedStaticMiddleware(HttpContext context, Func<Task> next)
+    {
+        if (ProtectedStaticPaths.Any(path => context.Request.Path.Equals(path, StringComparison.OrdinalIgnoreCase))
+            && !IsAuthorized(context))
+        {
+            AppLogger.Info($"Protected static rejected. Path={context.Request.Path}");
+            context.Response.Redirect("/?loginError=auth");
+            return;
+        }
+
+        await next();
     }
 
     private static async Task RequestLoggingMiddleware(HttpContext context, Func<Task> next)
@@ -179,10 +205,9 @@ public sealed class RemoteControlServer : IAsyncDisposable
             return;
         }
 
-        var token = context.Request.Query["token"].ToString();
-        if (!TimeSafeEquals(token, _config.AuthToken))
+        if (!IsAuthorized(context))
         {
-            AppLogger.Info($"WebSocket rejected. Invalid token. TokenLength={token.Length}, ExpectedLength={_config.AuthToken.Length}");
+            AppLogger.Info("WebSocket rejected. Missing or invalid session cookie.");
             context.Response.StatusCode = StatusCodes.Status401Unauthorized;
             return;
         }
@@ -288,6 +313,36 @@ public sealed class RemoteControlServer : IAsyncDisposable
         }
     }
 
+    private bool IsAuthorized(HttpContext context)
+    {
+        return context.Request.Cookies.TryGetValue(SessionCookieName, out var session)
+            && TimeSafeEquals(session, _config.SessionToken);
+    }
+
+    private void SetSessionCookie(HttpContext context)
+    {
+        context.Response.Cookies.Append(
+            SessionCookieName,
+            _config.SessionToken,
+            new CookieOptions
+            {
+                HttpOnly = true,
+                SameSite = SameSiteMode.Lax,
+                IsEssential = true
+            });
+    }
+
+    private static void ClearSessionCookie(HttpContext context)
+    {
+        context.Response.Cookies.Delete(
+            SessionCookieName,
+            new CookieOptions
+            {
+                HttpOnly = true,
+                SameSite = SameSiteMode.Lax
+            });
+    }
+
     private static bool TimeSafeEquals(string left, string right)
     {
         if (left.Length != right.Length)
@@ -304,6 +359,12 @@ public sealed class RemoteControlServer : IAsyncDisposable
         return diff == 0;
     }
 
+    private static bool IsLocalRequest(HttpContext context)
+    {
+        var remote = context.Connection.RemoteIpAddress;
+        return remote is not null && (IPAddress.IsLoopback(remote) || remote.IsIPv4MappedToIPv6 && IPAddress.IsLoopback(remote.MapToIPv4()));
+    }
+
     private static string DescribeRequestTarget(HttpContext context)
     {
         var path = context.Request.Path.ToString();
@@ -313,12 +374,9 @@ public sealed class RemoteControlServer : IAsyncDisposable
             return path;
         }
 
-        if (context.Request.Query.ContainsKey("token"))
-        {
-            return $"{path}?token=<redacted:length={context.Request.Query["token"].ToString().Length}>";
-        }
-
-        return $"{path}{query}";
+        return context.Request.Query.ContainsKey("token")
+            ? $"{path}?token=<redacted:length={context.Request.Query["token"].ToString().Length}>"
+            : $"{path}{query}";
     }
 
     private static IEnumerable<IPAddress> GetLocalIpAddresses()
@@ -333,7 +391,7 @@ public sealed class RemoteControlServer : IAsyncDisposable
     }
 
     private sealed record LoginRequest(string Password);
-    private sealed record LoginResponse(string Token);
+    private sealed record LoginResponse(bool Ok);
 
     private sealed class ControlCommand
     {
