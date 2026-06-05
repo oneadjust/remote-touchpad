@@ -4,23 +4,112 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>&#36828;&#31243;&#35302;&#25511;&#26495;</title>
-  <link rel="stylesheet" href="/styles.css?v=20260604-9">
+  <link rel="stylesheet" href="/styles.css?v=20260605-v2-fix8">
 </head>
 <body>
   <main class="app">
     <section id="controller" class="controller">
       <div class="status">
-        <strong>&#36828;&#31243;&#35302;&#25511;&#26495;</strong>
+        <div>
+          <strong>&#36828;&#31243;&#35302;&#25511;&#26495;</strong>
+          <small id="accessUrl">&#27491;&#22312;&#33719;&#21462;&#22320;&#22336;</small>
+        </div>
         <span id="connectionState">&#27491;&#22312;&#36830;&#25509;</span>
       </div>
-      <div id="pad" class="pad" aria-label="&#35302;&#25511;&#26495;"></div>
-      <div class="buttons">
-        <button id="leftButton" type="button">&#24038;&#38190;</button>
-        <button id="rightButton" type="button">&#21491;&#38190;</button>
+
+      <div class="tabs" role="tablist" aria-label="&#25511;&#21046;&#20998;&#39029;">
+        <button class="tab is-active" type="button" data-tab="touch" role="tab" aria-selected="true">&#35302;&#25511;&#26495;</button>
+        <button class="tab" type="button" data-tab="media" role="tab" aria-selected="false">&#23186;&#20307;</button>
+        <button class="tab" type="button" data-tab="settings" role="tab" aria-selected="false">&#35774;&#32622;</button>
       </div>
-      <a class="log-link" href="/logout">&#36864;&#20986;&#30331;&#24405;</a>
+
+      <section class="tab-panel is-active" data-panel="touch" role="tabpanel">
+        <div id="pad" class="pad" aria-label="&#35302;&#25511;&#26495;">
+          <span>&#21333;&#25351;&#31227;&#21160; / &#21452;&#25351;&#28378;&#21160;</span>
+        </div>
+        <div class="buttons">
+          <button id="leftButton" type="button">&#24038;&#38190;</button>
+          <button id="rightButton" type="button">&#21491;&#38190;</button>
+        </div>
+      </section>
+
+      <section class="tab-panel" data-panel="media" role="tabpanel" hidden>
+        <div class="media-panel-grid">
+          <div class="transport-row">
+            <button id="previousButton" class="remote-button" type="button">
+              <span>&#9664;&#9664;</span>
+              &#19978;&#19968;&#26354;
+            </button>
+            <button id="playPauseButton" class="remote-button primary" type="button">
+              <span>&#9654;&#10073;&#10073;</span>
+              &#25773;&#25918; / &#26242;&#20572;
+            </button>
+            <button id="nextButton" class="remote-button" type="button">
+              <span>&#9654;&#9654;</span>
+              &#19979;&#19968;&#26354;
+            </button>
+          </div>
+          <div class="volume-row">
+            <button id="volumeDownButton" class="remote-button volume-button" type="button">
+              <span>&#8722;</span>
+              &#38899;&#37327;&#20943;
+            </button>
+            <button id="volumeUpButton" class="remote-button volume-button" type="button">
+              <span>+</span>
+              &#38899;&#37327;&#21152;
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <section class="tab-panel settings-panel" data-panel="settings" role="tabpanel" hidden>
+        <div class="setting-block">
+          <div class="setting-row">
+            <label for="sensitivityRange">&#25351;&#38024;&#28789;&#25935;&#24230;</label>
+            <output id="sensitivityValue">1.00x</output>
+          </div>
+          <input id="sensitivityRange" type="range" min="0.4" max="3" step="0.05" value="1">
+        </div>
+
+        <div class="setting-block">
+          <div class="setting-row">
+            <span>&#25351;&#38024;&#25918;&#22823;&#38236;</span>
+          </div>
+          <button id="magnifierToggleButton" type="button" class="wide-button">&#24320;&#21551;&#26700;&#38754;&#25918;&#22823;&#38236;</button>
+          <div class="setting-row">
+            <label for="magnifierZoomRange">&#25918;&#22823;&#20493;&#25968;</label>
+            <output id="magnifierZoomValue">2.00x</output>
+          </div>
+          <input id="magnifierZoomRange" type="range" min="1.25" max="4" step="0.25" value="2">
+          <div class="setting-row">
+            <label for="magnifierSizeRange">&#25918;&#22823;&#21306;&#22495;</label>
+            <output id="magnifierSizeValue">260px</output>
+          </div>
+          <input id="magnifierSizeRange" type="range" min="160" max="420" step="20" value="260">
+        </div>
+
+        <div class="setting-block">
+          <div class="setting-row">
+            <span>&#23186;&#20307;&#38190;&#20301;</span>
+          </div>
+          <p id="mediaBindingText" class="version-text">&#35831;&#22312; Windows &#25176;&#30424;&#33756;&#21333;&#20013;&#37197;&#32622;&#12290;</p>
+        </div>
+
+        <div class="setting-block qr-block">
+          <div>
+            <strong>&#25195;&#30721;&#36830;&#25509;</strong>
+            <p id="qrText">&#27491;&#22312;&#29983;&#25104;&#20108;&#32500;&#30721;</p>
+          </div>
+          <canvas id="qrCanvas" width="240" height="240" aria-label="&#36830;&#25509;&#20108;&#32500;&#30721;"></canvas>
+        </div>
+
+        <p id="versionText" class="version-text">&#27491;&#22312;&#33719;&#21462;&#29256;&#26412;</p>
+        <a class="log-link" href="/logout">&#36864;&#20986;&#30331;&#24405;</a>
+      </section>
     </section>
   </main>
-  <script src="/control.js?v=20260604-9"></script>
+  <script src="/vendor/qrcode-generator-2.0.4.js?v=20260605-v2-fix8"></script>
+  <script src="/qr.js?v=20260605-v2-fix8"></script>
+  <script src="/control.js?v=20260605-v2-fix8"></script>
 </body>
 </html>

@@ -1,127 +1,162 @@
 # Remote Touchpad
 
-Remote Touchpad 是一个 Windows 局域网 Web 触控板工具。电脑端运行托盘程序后，手机、iPad 或同网段浏览器访问电脑地址，即可通过网页控制鼠标移动、点击和滚轮。
+Remote Touchpad is a Windows LAN remote touchpad. Run the tray app on a Windows PC, then use a phone, tablet, or another browser on the same network to control mouse movement, clicks, scrolling, media keys, volume, pointer sensitivity, and a desktop magnifier.
 
-这个项目的目标很简单：躺在床上看视频、投屏、演示或远距离操作电脑时，不需要投屏画面，只把手机当作轻量鼠标使用。
+It does not stream or transmit your desktop image. The magnifier is drawn locally on the Windows computer.
 
-## 功能
+## Features
 
-- Windows 托盘常驻程序。
-- 内置 Kestrel Web 服务，默认端口 `8765`。
-- 手机/iPad 浏览器触控板页面。
-- 单指移动鼠标、点击、双击、双指滚动。
-- 页面底部提供左键、右键按钮。
-- 固定密码登录，默认密码 `123456`。
-- 登录后使用 `HttpOnly` 会话 Cookie，控制页和 WebSocket 都由后端校验。
-- 托盘菜单支持显示地址、复制地址、复制日志路径、修改密码、退出。
-- 后端请求和 WebSocket 日志，便于排障。
-- 透明底白色 1:1 托盘图标，适配 Windows 系统托盘。
+- Windows tray app with a built-in Kestrel web server.
+- Mobile-first web controller with three tabs: Touchpad, Media, Settings.
+- Single-finger mouse movement, tap, double tap, two-finger scroll, left click, and right click.
+- Media controls: previous, play/pause, next, volume down, and volume up.
+- Configurable media key bindings from the Windows tray menu, including captured keyboard shortcuts.
+- Pointer sensitivity slider, saved to user config.
+- Desktop pointer magnifier with adjustable zoom and lens size.
+- QR code connection page and QR code on the login page.
+- Tray menu actions: show/copy access address, open QR page, copy log path, change password, configure media keys, startup toggle, and exit.
+- Current-user startup option via `HKCU\Software\Microsoft\Windows\CurrentVersion\Run`.
 
-## 快速开始
+## Direct Use From Release
 
-运行开发版：
+This is the easiest path for most users.
+
+1. Download `RemoteTouchpad-win-x64-v2.0.0.zip` from the GitHub Releases page.
+2. Extract the zip to any folder, for example:
+
+   ```text
+   C:\Tools\RemoteTouchpad
+   ```
+
+3. Run `RemoteTouchpad.exe`.
+4. Right-click the tray icon and choose `显示访问地址`, `复制访问地址`, or `打开二维码页面`.
+5. On your phone or tablet, open the shown LAN address or scan the QR code.
+6. Log in with the default password:
+
+   ```text
+   123456
+   ```
+
+7. After first launch, use the tray menu `修改密码` to set your own password.
+
+Notes:
+
+- The port is `8765` by default.
+- The IP address is not fixed. It is the current LAN IP of the Windows PC, such as `192.168.1.4`.
+- The program automatically prefers usable LAN addresses and filters out loopback, link-local, and virtual ranges such as `198.18.0.0/15`.
+- If Windows Firewall asks for permission, allow LAN/private-network access.
+
+## Build From Source
+
+Requirements:
+
+- Windows
+- .NET 8 SDK
+
+Run the development build:
 
 ```powershell
-dotnet run --project src/RemoteTouchpad/RemoteTouchpad.csproj
+dotnet run --project src\RemoteTouchpad\RemoteTouchpad.csproj
 ```
 
-启动后，右键系统托盘图标，选择“显示访问地址”或“复制访问地址”。在同一局域网内，用手机或 iPad 浏览器打开该地址。
-
-常用入口：
-
-```text
-http://localhost:8765/
-http://localhost:8765/control.html
-http://localhost:8765/logs
-```
-
-首次登录使用默认密码：
-
-```text
-123456
-```
-
-建议首次运行后通过托盘菜单修改密码。
-
-## 发布
-
-生成 Windows x64 发布目录：
+Publish a Windows x64 release build:
 
 ```powershell
 dotnet publish src\RemoteTouchpad\RemoteTouchpad.csproj -c Release -r win-x64 --self-contained false
 ```
 
-发布输出目录：
+Publish output:
 
 ```text
 src\RemoteTouchpad\bin\Release\net8.0-windows\win-x64\publish
 ```
 
-如果覆盖已有发布目录，请先退出正在运行的 `RemoteTouchpad.exe`，否则 Windows 可能锁定 DLL 文件。
+If replacing an existing publish folder, exit the running `RemoteTouchpad.exe` first. Windows may lock DLL files while the app is running.
 
-## 配置与日志
+## Useful URLs
 
-配置文件：
+After the app starts:
+
+```text
+http://<your-pc-lan-ip>:8765/
+http://<your-pc-lan-ip>:8765/control.html
+http://<your-pc-lan-ip>:8765/qr.html
+http://localhost:8765/logs
+```
+
+`localhost` only works on the Windows PC itself. Phones must use the LAN IP shown by the tray menu or QR code.
+
+## Configuration And Logs
+
+Config file:
 
 ```text
 %APPDATA%\RemoteTouchpad\config.json
 ```
 
-日志文件：
+Log file:
 
 ```text
 %APPDATA%\RemoteTouchpad\logs\remote-touchpad.log
 ```
 
-默认配置包括：
+Default config includes:
 
-- 端口：`8765`
-- 密码：`123456`
-- 鼠标灵敏度：`1.0`
+- Port: `8765`
+- Password: `123456`
+- Pointer sensitivity: `1.0`
+- Magnifier zoom: `2.0`
+- Magnifier lens size: `260`
 
-## 安全说明
+## Security Notes
 
-Remote Touchpad 面向个人电脑和同一局域网使用，不包含外网穿透能力，也不传输桌面画面。
+Remote Touchpad is designed for personal computers on the same LAN.
 
-当前登录流程：
+- It does not provide public-network tunneling.
+- It does not transmit the desktop image.
+- `/control.html`, `/control.js`, and `/ws` require a valid login session.
+- `/qr.html` only displays the access URL and does not expose the password or session token.
+- `/logs` is available to logged-in users or local requests.
+
+Login flow:
 
 ```text
 POST /login -> Set-Cookie remoteTouchpadSession=<HttpOnly> -> 302 /control.html
 ```
 
-控制页通过会话 Cookie 建立 WebSocket：
+Control uses WebSocket:
 
 ```text
 GET /ws
 ```
 
-`/control.html`、`/control.js` 和 `/ws` 都需要有效会话。`/logs` 仅允许已登录访问，或从本机访问。
+## Troubleshooting
 
-## 常见问题
+If the phone cannot connect:
 
-如果手机无法访问：
+- Make sure the phone and PC are on the same LAN.
+- Use the tray menu copied address or QR code; do not use `localhost` on the phone.
+- Check whether Windows Firewall blocks port `8765`.
+- Check that `RemoteTouchpad.exe` is still running.
+- Open `http://localhost:8765/logs` on the PC to inspect server logs.
 
-- 确认手机和电脑在同一局域网。
-- 使用托盘菜单复制的局域网地址，不要在手机上使用 `localhost`。
-- 检查 Windows 防火墙是否拦截端口 `8765`。
-- 确认电脑端程序仍在运行。
+If QR scanning fails:
 
-如果登录或控制异常：
+- Open `http://127.0.0.1:8765/qr.html` on the PC from the tray menu.
+- Confirm the text under the QR code is a LAN address, for example `http://192.168.x.x:8765/`.
+- Refresh the page to avoid cached static assets.
 
-- 强制刷新浏览器页面。
-- 打开 `http://localhost:8765/logs` 查看服务端日志。
-- 检查 `%APPDATA%\RemoteTouchpad\config.json` 中的密码配置。
+## Documentation
 
-## 文档
+- [User guide](docs/user-guide.md)
+- [Implementation retrospective](docs/remote-touchpad-retrospective.md)
 
-- [用户手册](docs/user-guide.md)
-- [实现复盘](docs/remote-touchpad-retrospective.md)
-
-## 技术栈
+## Technology
 
 - .NET 8
 - C#
-- Windows Forms 托盘程序
+- Windows Forms tray app
 - ASP.NET Core Kestrel
 - WebSocket
 - Windows `SendInput`
+- `qrcode-generator` for QR code rendering

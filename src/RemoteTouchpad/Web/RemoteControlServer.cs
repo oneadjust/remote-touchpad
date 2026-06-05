@@ -1,7 +1,5 @@
 using System.Diagnostics;
 using System.Net;
-using System.Net.NetworkInformation;
-using System.Net.Sockets;
 using System.Text.Json;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
@@ -15,6 +13,7 @@ namespace RemoteTouchpad.Web;
 public sealed class RemoteControlServer : IAsyncDisposable
 {
     private const string SessionCookieName = "remoteTouchpadSession";
+    private const string StaticAssetVersion = "20260605-v2-fix8";
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
     private static readonly PathString[] ProtectedStaticPaths =
     [
@@ -23,20 +22,25 @@ public sealed class RemoteControlServer : IAsyncDisposable
     ];
 
     private readonly AppConfig _config;
+    private readonly ConfigStore _configStore;
+    private readonly DesktopMagnifier _desktopMagnifier = new();
+    private readonly KeyboardController _keyboardController = new();
     private readonly MouseController _mouseController = new();
     private WebApplication? _app;
 
-    public RemoteControlServer(AppConfig config)
+    public RemoteControlServer(AppConfig config, ConfigStore configStore)
     {
         _config = config;
+        _configStore = configStore;
     }
 
     public int Port => _config.Port;
 
-    public IReadOnlyList<string> AccessUrls => GetLocalIpAddresses()
-        .Select(address => $"http://{address}:{Port}")
-        .Prepend($"http://127.0.0.1:{Port}")
-        .ToArray();
+    public IReadOnlyList<string> AccessUrls => AccessUrlProvider.GetAccessUrls(Port);
+
+    public string PrimaryAccessUrl => AccessUrlProvider.GetPrimaryAccessUrl(Port);
+
+    public string LocalQrPageUrl => AccessUrlProvider.GetLocalQrPageUrl(Port);
 
     public async Task StartAsync(CancellationToken cancellationToken)
     {
@@ -72,15 +76,30 @@ public sealed class RemoteControlServer : IAsyncDisposable
             });
         }
 
-        _app.MapGet("/api/info", () =>
+        _app.MapGet("/api/info", (HttpContext context) =>
         {
             AppLogger.Info("API info requested.");
             return Results.Json(new
             {
                 name = "RemoteTouchpad",
                 port = _config.Port,
-                authenticated = false,
-                logPath = AppLogger.LogPath
+                authenticated = IsAuthorized(context),
+                logPath = AppLogger.LogPath,
+                sensitivity = _config.Sensitivity,
+                magnifierZoom = _config.MagnifierZoom,
+                magnifierSize = _config.MagnifierSize,
+                mediaBindings = new
+                {
+                    playPause = MediaBinding.GetDisplayName(_config.MediaBindings.PlayPause),
+                    previous = MediaBinding.GetDisplayName(_config.MediaBindings.Previous),
+                    next = MediaBinding.GetDisplayName(_config.MediaBindings.Next),
+                    volumeDown = MediaBinding.GetDisplayName(_config.MediaBindings.VolumeDown),
+                    volumeUp = MediaBinding.GetDisplayName(_config.MediaBindings.VolumeUp)
+                },
+                appVersion = StaticAssetVersion,
+                staticAssetVersion = StaticAssetVersion,
+                accessUrls = AccessUrls,
+                primaryAccessUrl = PrimaryAccessUrl
             });
         });
 
@@ -279,6 +298,18 @@ public sealed class RemoteControlServer : IAsyncDisposable
                     AppLogger.Info($"Command button. Button={command.Button}, Action={command.Action}");
                     HandleButtonCommand(command);
                     break;
+                case "media":
+                    AppLogger.Info($"Command media. Action={command.Action}");
+                    HandleMediaCommand(command);
+                    break;
+                case "magnifier":
+                    AppLogger.Info($"Command magnifier. Action={command.Action}");
+                    HandleMagnifierCommand(command);
+                    break;
+                case "settings":
+                    AppLogger.Info($"Command settings. Sensitivity={command.Sensitivity}");
+                    HandleSettingsCommand(command);
+                    break;
                 default:
                     AppLogger.Info($"Unknown command type. Type={command.Type}");
                     break;
@@ -287,6 +318,85 @@ public sealed class RemoteControlServer : IAsyncDisposable
         catch (Exception ex)
         {
             AppLogger.Error("Failed to handle control command.", ex);
+        }
+    }
+
+    private void HandleMediaCommand(ControlCommand command)
+    {
+        var binding = command.Action switch
+        {
+            "previous" => _config.MediaBindings.Previous,
+            "next" => _config.MediaBindings.Next,
+            "volumeDown" => _config.MediaBindings.VolumeDown,
+            "volumeUp" => _config.MediaBindings.VolumeUp,
+            _ => _config.MediaBindings.PlayPause
+        };
+
+        AppLogger.Info($"Command media executing. Action={command.Action}, Binding={binding}");
+        _keyboardController.ExecuteBinding(binding, command.Action ?? "media");
+    }
+
+    private void HandleMagnifierCommand(ControlCommand command)
+    {
+        if (string.Equals(command.Action, "on", StringComparison.OrdinalIgnoreCase))
+        {
+            _desktopMagnifier.Start();
+            _desktopMagnifier.Configure(_config.MagnifierZoom, _config.MagnifierSize);
+            AppLogger.Info($"Desktop magnifier on requested. Running={_desktopMagnifier.IsRunning}");
+            return;
+        }
+
+        if (string.Equals(command.Action, "off", StringComparison.OrdinalIgnoreCase))
+        {
+            _desktopMagnifier.Stop();
+            AppLogger.Info("Desktop magnifier stopped.");
+            return;
+        }
+
+        _desktopMagnifier.Toggle();
+        AppLogger.Info($"Desktop magnifier toggled. Running={_desktopMagnifier.IsRunning}");
+    }
+
+    private void HandleSettingsCommand(ControlCommand command)
+    {
+        var changed = false;
+        if (command.Sensitivity is >= 0.4 and <= 3.0)
+        {
+            _config.Sensitivity = Math.Round(command.Sensitivity, 2);
+            AppLogger.Info($"Sensitivity saved. Value={_config.Sensitivity}");
+            changed = true;
+        }
+        else if (command.Sensitivity != 0)
+        {
+            AppLogger.Info($"Sensitivity ignored. OutOfRange={command.Sensitivity}");
+        }
+
+        if (command.MagnifierZoom is >= 1.25 and <= 4.0)
+        {
+            _config.MagnifierZoom = Math.Round(command.MagnifierZoom, 2);
+            AppLogger.Info($"Magnifier zoom saved. Value={_config.MagnifierZoom}");
+            changed = true;
+        }
+        else if (command.MagnifierZoom != 0)
+        {
+            AppLogger.Info($"Magnifier zoom ignored. OutOfRange={command.MagnifierZoom}");
+        }
+
+        if (command.MagnifierSize is >= 160 and <= 420)
+        {
+            _config.MagnifierSize = command.MagnifierSize;
+            AppLogger.Info($"Magnifier size saved. Value={_config.MagnifierSize}");
+            changed = true;
+        }
+        else if (command.MagnifierSize != 0)
+        {
+            AppLogger.Info($"Magnifier size ignored. OutOfRange={command.MagnifierSize}");
+        }
+
+        if (changed)
+        {
+            _configStore.Save(_config);
+            _desktopMagnifier.Configure(_config.MagnifierZoom, _config.MagnifierSize);
         }
     }
 
@@ -379,17 +489,6 @@ public sealed class RemoteControlServer : IAsyncDisposable
             : $"{path}{query}";
     }
 
-    private static IEnumerable<IPAddress> GetLocalIpAddresses()
-    {
-        return NetworkInterface.GetAllNetworkInterfaces()
-            .Where(adapter => adapter.OperationalStatus == OperationalStatus.Up)
-            .Where(adapter => adapter.NetworkInterfaceType != NetworkInterfaceType.Loopback)
-            .SelectMany(adapter => adapter.GetIPProperties().UnicastAddresses)
-            .Where(address => address.Address.AddressFamily == AddressFamily.InterNetwork)
-            .Select(address => address.Address)
-            .Where(address => !IPAddress.IsLoopback(address));
-    }
-
     private sealed record LoginRequest(string Password);
     private sealed record LoginResponse(bool Ok);
 
@@ -399,6 +498,9 @@ public sealed class RemoteControlServer : IAsyncDisposable
         public double Dx { get; set; }
         public double Dy { get; set; }
         public double Delta { get; set; }
+        public double Sensitivity { get; set; }
+        public double MagnifierZoom { get; set; }
+        public int MagnifierSize { get; set; }
         public string? Button { get; set; }
         public string? Action { get; set; }
     }

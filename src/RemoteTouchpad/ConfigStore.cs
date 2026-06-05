@@ -51,6 +51,16 @@ public sealed class ConfigStore
                 config.Sensitivity = 1.0;
             }
 
+            config.MagnifierZoom = Math.Clamp(config.MagnifierZoom <= 0 ? 2.0 : config.MagnifierZoom, 1.25, 4.0);
+            config.MagnifierSize = Math.Clamp(config.MagnifierSize <= 0 ? 260 : config.MagnifierSize, 160, 420);
+
+            config.MediaBindings ??= new MediaBindings();
+            config.MediaBindings.PlayPause = MediaBinding.Normalize(config.MediaBindings.PlayPause, MediaBinding.SystemPlayPause);
+            config.MediaBindings.Previous = MediaBinding.Normalize(config.MediaBindings.Previous, MediaBinding.SystemPrevious);
+            config.MediaBindings.Next = MediaBinding.Normalize(config.MediaBindings.Next, MediaBinding.SystemNext);
+            config.MediaBindings.VolumeDown = MediaBinding.Normalize(config.MediaBindings.VolumeDown, MediaBinding.SystemVolumeDown);
+            config.MediaBindings.VolumeUp = MediaBinding.Normalize(config.MediaBindings.VolumeUp, MediaBinding.SystemVolumeUp);
+
             Save(config);
             return config;
         }

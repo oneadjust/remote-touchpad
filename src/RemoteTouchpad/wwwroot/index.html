@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>&#36828;&#31243;&#35302;&#25511;&#26495;</title>
-  <link rel="stylesheet" href="/styles.css?v=20260604-9">
+  <link rel="stylesheet" href="/styles.css?v=20260605-v2-fix8">
 </head>
 <body>
   <main class="app">
@@ -16,9 +16,19 @@
         <button id="connectButton" type="submit">&#36830;&#25509;</button>
       </form>
       <p id="loginError" class="error" aria-live="polite" hidden>&#26080;&#27861;&#36830;&#25509;&#65292;&#35831;&#26816;&#26597;&#23494;&#30721;&#21518;&#37325;&#35797;&#12290;</p>
+      <div class="login-qr">
+        <div class="setting-row">
+          <strong>&#25195;&#30721;&#36830;&#25509;</strong>
+          <button id="copyAddressButton" type="button" class="inline-button">&#22797;&#21046;&#22320;&#22336;</button>
+        </div>
+        <canvas id="loginQrCanvas" width="240" height="240" aria-label="&#36830;&#25509;&#20108;&#32500;&#30721;"></canvas>
+        <p id="loginQrText">&#27491;&#22312;&#33719;&#21462;&#23616;&#22495;&#32593;&#22320;&#22336;</p>
+      </div>
       <a class="log-link" href="/logs" target="_blank" rel="noreferrer">&#26597;&#30475;&#26381;&#21153;&#26085;&#24535;</a>
     </section>
   </main>
-  <script src="/app.js?v=20260604-9"></script>
+  <script src="/vendor/qrcode-generator-2.0.4.js?v=20260605-v2-fix8"></script>
+  <script src="/qr.js?v=20260605-v2-fix8"></script>
+  <script src="/app.js?v=20260605-v2-fix8"></script>
 </body>
 </html>
